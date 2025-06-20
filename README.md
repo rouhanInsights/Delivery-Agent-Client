@@ -1,5 +1,10 @@
 cli metro: npx react-native start --reset-cache
+
+
 cli android: npx react-native run-android
+
+
+
 server: npm run dev
 
 
