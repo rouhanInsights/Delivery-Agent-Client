@@ -10,12 +10,14 @@ import {
   Keyboard,
   Alert,
   ActivityIndicator,
+  useColorScheme,
+  StatusBar,
 } from 'react-native';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import styles from '../styles/DetailsScreenStyles';
 import { API_BASE_URL } from '@env';
+import { getDetailsStyles } from '../styles/DetailsScreenStyles';
 
 type RootStackParamList = {
   Details: {
@@ -46,6 +48,10 @@ export default function DetailsScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<DetailsScreenRouteProp>();
   const { orderId, slot_date, slot_details, name, phone, address, paymentMethod } = route.params;
+
+  const scheme = useColorScheme();
+  const theme = scheme === 'dark' ? 'dark' : 'light';
+  const styles = getDetailsStyles(theme);
 
   const [items, setItems] = useState<OrderItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -126,117 +132,129 @@ export default function DetailsScreen() {
 
   return (
     <>
-      <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.header}>Order Details</Text>
+      <StatusBar
+        barStyle={theme === 'dark' ? 'light-content' : 'dark-content'}
+        backgroundColor={styles.statusBar.backgroundColor as string}
+      />
 
-        {(safeStatus === 'assigned' || safeStatus === 'accepted') && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>👤 Customer Info</Text>
-            <Text style={styles.text}>Name: {name}</Text>
-            <TouchableOpacity onPress={handleCopyPhone}>
+      {/* Wrapper paints the whole viewport */}
+      <View style={styles.screen}>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.container}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Text style={styles.header}>Order Details</Text>
+
+          {(safeStatus === 'assigned' || safeStatus === 'accepted') && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>👤 Customer Info</Text>
               <Text style={styles.text}>
-                Phone: <Text style={styles.underlinedBold}>{phone}</Text>
+                Name: <Text style={styles.bold}>{name}</Text>
               </Text>
-            </TouchableOpacity>
-            <Text style={styles.text}>
-              Address: <Text style={styles.link}>{address}</Text>
-            </Text>
-          </View>
-        )}
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Order Info</Text>
-          <Text style={styles.text}>Order ID: #{orderId}</Text>
-          <Text style={styles.text}>Slot Date: {slot_date}</Text>
-          <Text style={styles.text}>Slot: {slot_details}</Text>
-          <Text style={styles.text}>Payment Mode: {displayPayment}</Text>
-          <Text style={styles.statusText}>
-            Current Status:{' '}
-            <Text
-              style={[
-                styles.statusBadge,
-                safeStatus === 'rejected'
-                  ? styles.statusRejected
-                  : safeStatus === 'assigned'
-                  ? styles.statusAssigned
-                  : safeStatus === 'accepted'
-                  ? styles.statusAccepted
-                  : safeStatus === 'delivered'
-                  ? styles.statusDelivered
-                  : null,
-              ]}
-            >
-              {(status ?? 'N/A').toUpperCase()}
-            </Text>
-          </Text>
-
-          {safeStatus === 'rejected' && !!remarks && (
-            <Text style={styles.text}>
-              Remarks: <Text style={styles.bold}>{remarks}</Text>
-            </Text>
-          )}
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Items</Text>
-          {loading ? (
-            <ActivityIndicator size="large" />
-          ) : items.length === 0 ? (
-            <Text>No items found.</Text>
-          ) : (
-            items.map((item, index) => (
-              <View key={index} style={styles.itemRow}>
-                <Text style={styles.itemCol}>
-                  <Text style={styles.bold}>{item.item_name}</Text>
+              <TouchableOpacity onPress={handleCopyPhone}>
+                <Text style={styles.text}>
+                  Phone: <Text style={styles.underlinedBold}>{phone}</Text>
                 </Text>
-                <Text style={styles.itemCol}>
-                  <Text style={styles.bold}>Qty: {item.quantity}</Text>
-                </Text>
-              </View>
-            ))
+              </TouchableOpacity>
+              <Text style={styles.text}>
+                Address: <Text style={styles.link}>{address}</Text>
+              </Text>
+            </View>
           )}
-        </View>
 
-        <Text style={styles.total}>Total: ₹ {totalPrice.toFixed(2)}</Text>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Order Info</Text>
+            <Text style={styles.text}>Order ID: #{orderId}</Text>
+            <Text style={styles.text}>Slot Date: {slot_date}</Text>
+            <Text style={styles.text}>Slot: {slot_details}</Text>
+            <Text style={styles.text}>Payment Mode: {displayPayment}</Text>
+            <Text style={styles.statusText}>
+              Current Status:{' '}
+              <Text
+                style={[
+                  styles.statusBadge,
+                  safeStatus === 'rejected'
+                    ? styles.statusRejected
+                    : safeStatus === 'assigned'
+                    ? styles.statusAssigned
+                    : safeStatus === 'accepted'
+                    ? styles.statusAccepted
+                    : safeStatus === 'delivered'
+                    ? styles.statusDelivered
+                    : null,
+                ]}
+              >
+                {(status ?? 'N/A').toUpperCase()}
+              </Text>
+            </Text>
 
-        {safeStatus === 'assigned' && (
-          <View style={styles.buttonRow}>
-            <TouchableOpacity
-              style={styles.rejectButton}
-              disabled={actionLoading}
-              onPress={() => setShowRejectModal(true)}
-            >
-              <Text style={styles.rejectText}>Reject</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.acceptButton}
-              disabled={actionLoading}
-              onPress={() => updateOrderStatus('accepted')}
-            >
-              <Text style={styles.acceptText}>Accept</Text>
-            </TouchableOpacity>
+            {safeStatus === 'rejected' && !!remarks && (
+              <Text style={styles.text}>
+                Remarks: <Text style={styles.bold}>{remarks}</Text>
+              </Text>
+            )}
           </View>
-        )}
 
-        {safeStatus === 'accepted' && (
-          <View style={styles.buttonRow}>
-            <TouchableOpacity
-              style={styles.rejectButton}
-              disabled={actionLoading}
-              onPress={() => setShowRejectModal(true)}
-            >
-              <Text style={styles.rejectText}>Reject</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.acceptButton}
-              disabled={actionLoading}
-              onPress={() => updateOrderStatus('delivered')}
-            >
-              <Text style={styles.acceptText}>Mark as Delivered</Text>
-            </TouchableOpacity>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Items</Text>
+            {loading ? (
+              <ActivityIndicator size="large" color={styles.activity.color as string} />
+            ) : items.length === 0 ? (
+              <Text style={styles.text}>No items found.</Text>
+            ) : (
+              items.map((item, index) => (
+                <View key={index} style={styles.itemRow}>
+                  <Text style={[styles.itemCol, styles.bold]}>{item.item_name}</Text>
+                  <Text style={styles.itemCol}>
+                    <Text style={styles.bold}>Qty: {item.quantity}</Text>
+                  </Text>
+                </View>
+              ))
+            )}
           </View>
-        )}
-      </ScrollView>
+
+          <Text style={styles.total}>Total: ₹ {totalPrice.toFixed(2)}</Text>
+
+          {safeStatus === 'assigned' && (
+            <View style={styles.buttonRow}>
+              <TouchableOpacity
+                style={styles.rejectButton}
+                disabled={actionLoading}
+                onPress={() => setShowRejectModal(true)}
+              >
+                <Text style={styles.rejectText}>Reject</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.acceptButton}
+                disabled={actionLoading}
+                onPress={() => updateOrderStatus('accepted')}
+              >
+                <Text style={styles.acceptText}>Accept</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {safeStatus === 'accepted' && (
+            <View style={styles.buttonRow}>
+              <TouchableOpacity
+                style={styles.rejectButton}
+                disabled={actionLoading}
+                onPress={() => setShowRejectModal(true)}
+              >
+                <Text style={styles.rejectText}>Reject</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.acceptButton}
+                disabled={actionLoading}
+                onPress={() => updateOrderStatus('delivered')}
+              >
+                <Text style={styles.acceptText}>Mark as Delivered</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </ScrollView>
+      </View>
 
       <Modal
         visible={showRejectModal}
@@ -255,8 +273,13 @@ export default function DetailsScreen() {
                   onChangeText={setRemarks}
                   multiline
                   placeholder="Reason for rejection..."
+                  placeholderTextColor={styles.placeholder.color as string}
+                  selectionColor={styles.selection.color as string}
+                  keyboardAppearance={theme}
                 />
-                <Text style={styles.warningText}>Are you sure you want to reject this order?</Text>
+                <Text style={styles.warningText}>
+                  Are you sure you want to reject this order?
+                </Text>
                 <TouchableOpacity
                   style={styles.submitButton}
                   disabled={actionLoading}

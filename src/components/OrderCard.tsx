@@ -1,9 +1,9 @@
 import React from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, useColorScheme } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import styles from '../styles/OrderCardStyles';
 import Button from './Button';
+import { getOrderCardStyles } from '../styles/OrderCardStyles';
 
 interface OrderCardProps {
   orderId: number;
@@ -34,7 +34,11 @@ const OrderCard: React.FC<OrderCardProps> = ({
   paymentMethod,
   status,
 }) => {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const scheme = useColorScheme();
+  const theme = scheme === 'dark' ? 'dark' : 'light';
+  const styles = getOrderCardStyles(theme);
 
   const isCOD = paymentMethod?.toLowerCase() === 'cod';
   const displayPayment = isCOD ? 'COD' : 'Paid';
@@ -60,25 +64,37 @@ const OrderCard: React.FC<OrderCardProps> = ({
       <View style={styles.headerRow}>
         <Text style={styles.orderId}>#ORD{orderId}</Text>
 
-        <View style={[styles.badge, isCOD ? styles.cod : styles.prepaid]}>
-          <Text style={styles.badgeText}>{displayPayment}</Text>
+        <View style={[styles.badge, isCOD ? styles.badgeCOD : styles.badgePrepaid]}>
+          <Text style={isCOD ? styles.badgeTextCOD : styles.badgeTextPrepaid}>
+            {displayPayment}
+          </Text>
         </View>
       </View>
 
       <Text style={styles.date}>
         {slot_date} | Slot: {slot_details}
       </Text>
+
       {status !== 'rejected' && status !== 'delivered' && (
-  <Text style={styles.name}>{name}</Text>
-)}
+        <Text style={styles.name}>{name}</Text>
+      )}
 
       {isAddressVisible && <Text style={styles.address}>{address}</Text>}
+
       <Text style={styles.items}>
         {total_items} Items <Text style={styles.price}>Rs {total_price}</Text>
       </Text>
 
       <View style={styles.buttonContainer}>
         <Button title="View Details" onPress={handleViewDetails} />
+        {/* If your Button supports style/textStyle, you can theme it further:
+            <Button
+              title="View Details"
+              onPress={handleViewDetails}
+              style={styles.button}
+              textStyle={styles.buttonText}
+            />
+        */}
       </View>
     </View>
   );

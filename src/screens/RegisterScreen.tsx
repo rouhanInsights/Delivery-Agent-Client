@@ -1,19 +1,22 @@
 import React, { useState } from 'react';
 import {
+  View,
   Text,
   TextInput,
   ScrollView,
   Alert,
   TouchableOpacity,
   Image,
+  useColorScheme,
+  StatusBar,
+  Platform,
 } from 'react-native';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
-import styles from '../styles/RegisterStyles';
 import Button from '../components/Button';
 import { API_BASE_URL } from '@env';
-
+import { getRegisterStyles } from '../styles/RegisterStyles';
 
 type RootStackParamList = {
   Login: undefined;
@@ -48,24 +51,25 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
 
   const [govtIdImage, setGovtIdImage] = useState<any>(null);
 
+  const scheme = useColorScheme();
+  const theme = scheme === 'dark' ? 'dark' : 'light';
+  const styles = getRegisterStyles(theme);
+
   const handleChange = (field: keyof FormState, value: string) => {
-    setForm({ ...form, [field]: value });
+    setForm(prev => ({ ...prev, [field]: value }));
   };
 
   const pickImage = async () => {
-    launchImageLibrary(
-      { mediaType: 'photo', quality: 1 },
-      (response) => {
-        if (response.didCancel) {return;}
-        if (response.errorCode) {
-          Alert.alert('Error', response.errorMessage || 'Failed to pick image.');
-          return;
-        }
-        if (response.assets && response.assets.length > 0) {
-          setGovtIdImage(response.assets[0]);
-        }
+    launchImageLibrary({ mediaType: 'photo', quality: 1 }, (response) => {
+      if (response.didCancel) return;
+      if (response.errorCode) {
+        Alert.alert('Error', response.errorMessage || 'Failed to pick image.');
+        return;
       }
-    );
+      if (response.assets && response.assets.length > 0) {
+        setGovtIdImage(response.assets[0]);
+      }
+    });
   };
 
   const handleSubmit = async () => {
@@ -93,18 +97,20 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
 
     try {
       const formData = new FormData();
-      Object.entries(form).forEach(([key, value]) =>
-        formData.append(key, value)
-      );
-      formData.append('upload_img', {
-        uri: govtIdImage.uri,
-        type: 'image/jpeg',
-        name: 'govtid.jpg',
+      Object.entries(form).forEach(([key, value]) => {
+        formData.append(key, value as string);
       });
+
+      formData.append('upload_img' as any, {
+        uri: govtIdImage.uri,
+        type: govtIdImage.type || 'image/jpeg',
+        name: govtIdImage.fileName || 'govtid.jpg',
+      } as any);
 
       const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
         method: 'POST',
         headers: {
+          // Let RN set the boundary automatically
           'Content-Type': 'multipart/form-data',
         },
         body: formData,
@@ -126,75 +132,131 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Register</Text>
-
-      <Text style={styles.label}>Full Name</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Enter Full Name"
-        onChangeText={(val) => handleChange('fullName', val)}
+    <View style={styles.screen}>
+      <StatusBar
+        barStyle={theme === 'dark' ? 'light-content' : 'dark-content'}
+        backgroundColor={styles.statusBar.backgroundColor as string}
       />
 
-      <Text style={styles.label}>Email ID</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Enter Email ID"
-        keyboardType="email-address"
-        onChangeText={(val) => handleChange('email', val)}
-      />
+      <ScrollView
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Text style={styles.title}>Register</Text>
 
-      <Text style={styles.label}>Phone Number</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Enter Phone Number"
-        keyboardType="phone-pad"
-        onChangeText={(val) => handleChange('phone', val)}
-      />
-
-      <Text style={styles.label}>Password</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Enter Password"
-        secureTextEntry
-        onChangeText={(val) => handleChange('password', val)}
-      />
-
-      <Text style={styles.label}>Confirm Password</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Confirm Password"
-        secureTextEntry
-        onChangeText={(val) => handleChange('confirmPassword', val)}
-      />
-
-      <Text style={styles.label}>Vehicle Details</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Eg: Hero Splendor Black WB-01-1234"
-        onChangeText={(val) => handleChange('vehicle', val)}
-      />
-
-      <Text style={styles.label}>Government ID Number</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Enter Govt ID Number"
-        onChangeText={(val) => handleChange('govtId', val)}
-      />
-
-      <Text style={styles.label}>Govt Issued Verification Image</Text>
-      <TouchableOpacity onPress={pickImage} style={styles.input}>
-        <Text>{govtIdImage ? 'Image Selected' : '📁 Tap to Choose Image'}</Text>
-      </TouchableOpacity>
-
-      {govtIdImage && (
-        <Image
-          source={{ uri: govtIdImage.uri }}
-          style={styles.govtIdImagePreview}
+        <Text style={styles.label}>Full Name</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Enter Full Name"
+          placeholderTextColor={styles.placeholder.color as string}
+          selectionColor={styles.selection.color as string}
+          onChangeText={(val) => handleChange('fullName', val)}
+          autoCapitalize="words"
+          autoCorrect={false}
+          keyboardAppearance={theme}
         />
-      )}
 
-      <Button title="Submit" onPress={handleSubmit} variant="welcome" />
-    </ScrollView>
+        <Text style={styles.label}>Email ID</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Enter Email ID"
+          placeholderTextColor={styles.placeholder.color as string}
+          selectionColor={styles.selection.color as string}
+          keyboardType="email-address"
+          onChangeText={(val) => handleChange('email', val)}
+          autoCapitalize="none"
+          autoCorrect={false}
+          keyboardAppearance={theme}
+        />
+
+        <Text style={styles.label}>Phone Number</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Enter Phone Number"
+          placeholderTextColor={styles.placeholder.color as string}
+          selectionColor={styles.selection.color as string}
+          keyboardType="phone-pad"
+          onChangeText={(val) => handleChange('phone', val)}
+          maxLength={15}
+          autoCorrect={false}
+          keyboardAppearance={theme}
+        />
+
+        <Text style={styles.label}>Password</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Enter Password"
+          placeholderTextColor={styles.placeholder.color as string}
+          selectionColor={styles.selection.color as string}
+          secureTextEntry
+          onChangeText={(val) => handleChange('password', val)}
+          autoCapitalize="none"
+          autoCorrect={false}
+          keyboardAppearance={theme}
+        />
+
+        <Text style={styles.label}>Confirm Password</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Confirm Password"
+          placeholderTextColor={styles.placeholder.color as string}
+          selectionColor={styles.selection.color as string}
+          secureTextEntry
+          onChangeText={(val) => handleChange('confirmPassword', val)}
+          autoCapitalize="none"
+          autoCorrect={false}
+          keyboardAppearance={theme}
+        />
+
+        <Text style={styles.label}>Vehicle Details</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Eg: Hero Splendor Black WB-01-1234"
+          placeholderTextColor={styles.placeholder.color as string}
+          selectionColor={styles.selection.color as string}
+          onChangeText={(val) => handleChange('vehicle', val)}
+          autoCapitalize="sentences"
+          autoCorrect={false}
+          keyboardAppearance={theme}
+        />
+
+        <Text style={styles.label}>Government ID Number</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Enter Govt ID Number"
+          placeholderTextColor={styles.placeholder.color as string}
+          selectionColor={styles.selection.color as string}
+          onChangeText={(val) => handleChange('govtId', val)}
+          autoCapitalize="characters"
+          autoCorrect={false}
+          keyboardAppearance={theme}
+        />
+
+        <Text style={styles.label}>Govt Issued Verification Image</Text>
+        <TouchableOpacity onPress={pickImage} style={styles.filePicker}>
+          <Text style={styles.filePickerText}>
+            {govtIdImage ? '✅ Image Selected' : '📁 Tap to Choose Image'}
+          </Text>
+        </TouchableOpacity>
+
+        {govtIdImage && (
+          <Image
+            source={{ uri: govtIdImage.uri }}
+            style={styles.govtIdImagePreview}
+          />
+        )}
+
+        <View style={styles.submitWrap}>
+          <Button
+            title="Submit"
+            onPress={handleSubmit}
+            variant="welcome"
+            // If your Button component accepts style/textStyle, you can pass:
+            // style={styles.button}
+            // textStyle={styles.buttonText}
+          />
+        </View>
+      </ScrollView>
+    </View>
   );
 }
