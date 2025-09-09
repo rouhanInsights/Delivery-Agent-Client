@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ScrollView,
   View,
@@ -8,6 +8,8 @@ import {
   StatusBar,
   useColorScheme,
   RefreshControl,
+  AppState,
+  AppStateStatus,
 } from 'react-native';
 import OrderCard from '../components/OrderCard';
 import OrderTabs from '../components/OrderTabs';
@@ -19,6 +21,7 @@ import { getHomeStyles } from '../styles/HomeStyles';
 type TabType = 'Assigned' | 'Accepted' | 'Rejected' | 'Delivered';
 
 interface Order {
+  assigned_id: number; // ✅ Now included
   order_id: number;
   formatted_date: string;
   slot_details: string;
@@ -31,6 +34,8 @@ interface Order {
   status: string;
 }
 
+const POLL_MS = 2000;
+
 const HomeScreen: React.FC = () => {
   const scheme = useColorScheme();
   const theme = scheme === 'dark' ? 'dark' : 'light';
@@ -41,7 +46,14 @@ const HomeScreen: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState(false);
 
+  const isFetchingRef = useRef(false);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+
   const fetchOrders = async () => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+
     try {
       const storedId = await AsyncStorage.getItem('da_user_id');
       if (!storedId) {
@@ -54,22 +66,61 @@ const HomeScreen: React.FC = () => {
       const data = await response.json();
 
       if (response.ok && Array.isArray(data.orders)) {
+        console.log(
+  'Fetched assigned_ids:',
+  (data.orders as Order[]).map((o) => o.assigned_id)
+);
+// ✅ Debug log
         setOrders(data.orders);
       } else {
-        Alert.alert('Error', data.message || 'Failed to fetch orders');
+        if (refreshing || loading) {
+          Alert.alert('Error', data.message || 'Failed to fetch orders');
+        }
       }
     } catch (err) {
       console.error('Fetch error:', err);
-      Alert.alert('Error', 'Could not fetch orders');
+      if (refreshing || loading) {
+        Alert.alert('Error', 'Could not fetch orders');
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
+      isFetchingRef.current = false;
     }
   };
 
   useEffect(() => {
     fetchOrders();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const startPolling = () => {
+      if (intervalRef.current) return;
+      intervalRef.current = setInterval(() => {
+        if (appStateRef.current !== 'active') return;
+        fetchOrders();
+      }, POLL_MS);
+    };
+
+    const stopPolling = () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+
+    startPolling();
+
+    const sub = AppState.addEventListener('change', (nextState) => {
+      appStateRef.current = nextState;
+      if (nextState === 'active') startPolling();
+      else stopPolling();
+    });
+
+    return () => {
+      sub.remove();
+      stopPolling();
+    };
   }, []);
 
   const onRefresh = () => {
@@ -106,7 +157,11 @@ const HomeScreen: React.FC = () => {
         </View>
 
         {loading ? (
-          <ActivityIndicator size="large" style={styles.loading} color={styles.activity.color as string} />
+          <ActivityIndicator
+            size="large"
+            style={styles.loading}
+            color={styles.activity.color as string}
+          />
         ) : filteredOrders.length === 0 ? (
           <Text style={styles.noOrdersText}>
             No {activeTab.toLowerCase()} orders.

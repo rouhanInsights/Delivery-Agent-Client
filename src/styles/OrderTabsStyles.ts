@@ -36,7 +36,7 @@ export const getOrderTabsStyles = (scheme: Scheme) => {
     },
     tabButton: {
       paddingVertical: 9,
-      paddingHorizontal: 16,
+      paddingHorizontal: 10,
       borderRadius: 20,
       backgroundColor: c.chipBg,
       borderWidth: 1,

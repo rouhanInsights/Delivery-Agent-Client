@@ -38,7 +38,7 @@ export const getHomeStyles = (scheme: Scheme) => {
       rowGap: 0,
     },
     tabContainer: {
-      paddingHorizontal: 16,
+      paddingHorizontal: 1,
       marginTop: 8,
     },
     loading: {
